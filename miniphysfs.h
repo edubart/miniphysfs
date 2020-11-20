@@ -4454,7 +4454,7 @@ extern PHYSFS_Allocator __PHYSFS_AllocatorHooks;
 
 /* convenience macro to make this less cumbersome internally... */
 #define allocator __PHYSFS_AllocatorHooks
-
+#define physfs_allocator __PHYSFS_AllocatorHooks
 /*
  * Create a PHYSFS_Io for a file in the physical filesystem.
  *  This path is in platform-dependent notation. (mode) must be 'r', 'w', or
@@ -5798,7 +5798,8 @@ static DirHandle *openDirectory(PHYSFS_Io *io, const char *d, int forWriting)
     if ((!retval) && (created_io))
         io->destroy(io);
 
-    BAIL_IF(!retval, claimed ? errcode : PHYSFS_ERR_UNSUPPORTED, NULL);
+    errcode = claimed ? errcode : PHYSFS_ERR_UNSUPPORTED;
+    BAIL_IF(!retval, errcode, NULL);
     return retval;
 } /* openDirectory */
 
@@ -5986,7 +5987,7 @@ static char *calculateBaseDir(const char *argv0)
     /* We need argv0 to go on. */
     BAIL_IF(argv0 == NULL, PHYSFS_ERR_ARGV0_IS_NULL, NULL);
 
-    ptr = strrchr(argv0, dirsep);
+    ptr = strrchr((char*)argv0, dirsep);
     if (ptr != NULL)
     {
         const size_t size = ((size_t) (ptr - argv0)) + 1;
@@ -7138,7 +7139,7 @@ static DirHandle *getRealDirHandle(const char *_fname)
 
     __PHYSFS_platformGrabMutex(stateLock);
     len = strlen(_fname) + longest_root + 1;
-    allocated_fname = __PHYSFS_smallAlloc(len);
+    allocated_fname = (char*)__PHYSFS_smallAlloc(len);
     BAIL_IF_MUTEX(!allocated_fname, PHYSFS_ERR_OUT_OF_MEMORY, stateLock, NULL);
     fname = allocated_fname + longest_root;
     if (sanitizePlatformIndependentPath(_fname, fname))
@@ -8011,7 +8012,7 @@ int PHYSFS_stat(const char *_fname, PHYSFS_Stat *stat)
 int __PHYSFS_readAll(PHYSFS_Io *io, void *buf, const size_t _len)
 {
     const PHYSFS_uint64 len = (PHYSFS_uint64) _len;
-    return (io->read(io, buf, len) == len);
+    return ((size_t)io->read(io, buf, len) == len);
 } /* __PHYSFS_readAll */
 
 
@@ -8164,7 +8165,7 @@ static __PHYSFS_DirTreeEntry *addAncestors(__PHYSFS_DirTree *dt, char *name)
 
 void *__PHYSFS_DirTreeAdd(__PHYSFS_DirTree *dt, char *name, const int isdir)
 {
-    __PHYSFS_DirTreeEntry *retval = __PHYSFS_DirTreeFind(dt, name);
+    __PHYSFS_DirTreeEntry *retval = (__PHYSFS_DirTreeEntry *)__PHYSFS_DirTreeFind(dt, name);
     if (!retval)
     {
         const size_t alloclen = strlen(name) + 1 + dt->entrylen;
@@ -8226,7 +8227,7 @@ PHYSFS_EnumerateCallbackResult __PHYSFS_DirTreeEnumerate(void *opaque,
 {
     PHYSFS_EnumerateCallbackResult retval = PHYSFS_ENUM_OK;
     __PHYSFS_DirTree *tree = (__PHYSFS_DirTree *) opaque;
-    const __PHYSFS_DirTreeEntry *entry = __PHYSFS_DirTreeFind(tree, dname);
+    const __PHYSFS_DirTreeEntry *entry = (__PHYSFS_DirTreeEntry *)__PHYSFS_DirTreeFind(tree, dname);
     BAIL_IF(!entry, PHYSFS_ERR_NOT_FOUND, PHYSFS_ENUM_ERROR);
 
     entry = entry->children;
@@ -8359,7 +8360,7 @@ PHYSFS_sint64 PHYSFS_swapSBE64(PHYSFS_sint64 x) { return x; }
 
 static inline int readAll(PHYSFS_File *file, void *val, const size_t len)
 {
-    return (PHYSFS_readBytes(file, val, len) == len);
+    return ((size_t)PHYSFS_readBytes(file, val, len) == len);
 } /* readAll */
 
 #define PHYSFS_BYTEORDER_READ(datatype, swaptype) \
@@ -8387,7 +8388,7 @@ PHYSFS_BYTEORDER_READ(uint64, UBE64)
 
 static inline int writeAll(PHYSFS_File *f, const void *val, const size_t len)
 {
-    return (PHYSFS_writeBytes(f, val, len) == len);
+    return ((size_t)PHYSFS_writeBytes(f, val, len) == len);
 } /* writeAll */
 
 #define PHYSFS_BYTEORDER_WRITE(datatype, swaptype) \
@@ -11856,7 +11857,7 @@ EXTERN_C_BEGIN
 #define k7zStartHeaderSize 0x20
 #define k7zSignatureSize 6
 
-static const Byte k7zSignature[k7zSignatureSize];
+static const Byte k7zSignature[k7zSignatureSize] = {'7', 'z', 0xBC, 0xAF, 0x27, 0x1C};
 
 typedef struct
 {
@@ -12992,7 +12993,7 @@ static UInt32 MY_FAST_CALL CrcUpdateT1_BeT8(UInt32 v, const void *data, size_t s
 
 #ifdef MY_CPU_X86_OR_AMD64
 
-#if (defined(_MSC_VER) && !defined(MY_CPU_AMD64)) || defined(__GNUC__)
+#if (defined(_MSC_VER) && !defined(MY_CPU_AMD64)) || defined(__GNUC__) || defined(__TINYC__)
 #define USE_ASM
 #endif
 
@@ -13347,8 +13348,6 @@ enum EIdEnum
   /* k7zParent, */
   /* k7zIsReal */
 };
-
-static const Byte k7zSignature[k7zSignatureSize] = {'7', 'z', 0xBC, 0xAF, 0x27, 0x1C};
 
 #define SzBitUi32s_Init(p) { (p)->Defs = NULL; (p)->Vals = NULL; }
 
@@ -15266,7 +15265,7 @@ static SRes SzDecodeLzma(const Byte *props, unsigned propsSize, UInt64 inSize, I
     {
       SizeT inProcessed = (SizeT)lookahead, dicPos = state.dicPos;
       ELzmaStatus status;
-      res = LzmaDec_DecodeToDic(&state, outSize, inBuf, &inProcessed, LZMA_FINISH_END, &status);
+      res = LzmaDec_DecodeToDic(&state, outSize, (const Byte*)inBuf, &inProcessed, LZMA_FINISH_END, &status);
       lookahead -= inProcessed;
       inSize -= inProcessed;
       if (res != SZ_OK)
@@ -15328,7 +15327,7 @@ static SRes SzDecodeLzma2(const Byte *props, unsigned propsSize, UInt64 inSize, 
     {
       SizeT inProcessed = (SizeT)lookahead, dicPos = state.decoder.dicPos;
       ELzmaStatus status;
-      res = Lzma2Dec_DecodeToDic(&state, outSize, inBuf, &inProcessed, LZMA_FINISH_END, &status);
+      res = Lzma2Dec_DecodeToDic(&state, outSize, (const Byte*)inBuf, &inProcessed, LZMA_FINISH_END, &status);
       lookahead -= inProcessed;
       inSize -= inProcessed;
       if (res != SZ_OK)
@@ -18090,7 +18089,7 @@ static void *DIR_openArchive(PHYSFS_Io *io, const char *name,
         BAIL(PHYSFS_ERR_UNSUPPORTED, NULL);
 
     *claimed = 1;
-    retval = allocator.Malloc(namelen + seplen + 1);
+    retval = (char*)allocator.Malloc(namelen + seplen + 1);
     BAIL_IF(retval == NULL, PHYSFS_ERR_OUT_OF_MEMORY, NULL);
 
     strcpy(retval, name);
@@ -20619,6 +20618,9 @@ typedef enum
     ZIP_BROKEN_SYMLINK
 } ZipResolveType;
 
+#if PHYSFS_HAVE_PRAGMA_VISIBILITY
+#pragma GCC visibility push(hidden)
+#endif
 
 /*
  * One ZIPentry is kept for each file in an open ZIP archive.
@@ -20666,6 +20668,9 @@ typedef struct
     z_stream stream;                      /* zlib stream state.         */
 } ZIPfileinfo;
 
+#if PHYSFS_HAVE_PRAGMA_VISIBILITY
+#pragma GCC visibility pop
+#endif
 
 /* Magic numbers... */
 #define ZIP_LOCAL_FILE_SIG                          0x04034b50
@@ -20863,7 +20868,7 @@ static PHYSFS_sint64 ZIP_read(PHYSFS_Io *_io, void *buf, PHYSFS_uint64 len)
         retval = zip_read_decrypt(finfo, buf, maxread);
     else
     {
-        finfo->stream.next_out = buf;
+        finfo->stream.next_out = (unsigned char*)buf;
         finfo->stream.avail_out = (uInt) maxread;
 
         while (retval < maxread)
@@ -21094,7 +21099,7 @@ static PHYSFS_sint64 zip_find_end_of_central_dir(PHYSFS_Io *io, PHYSFS_sint64 *l
      *  and call it a corrupted zipfile.
      */
 
-    if (sizeof (buf) < filelen)
+    if ((PHYSFS_sint64)sizeof (buf) < filelen)
     {
         filepos = filelen - sizeof (buf);
         maxread = sizeof (buf);
@@ -22357,7 +22362,7 @@ char *__PHYSFS_platformCalcBaseDir(const char *argv0)
             {
                 const char *path = (*jenv)->GetStringUTFChars(jenv, jstr, NULL);
                 const size_t len = strlen(path) + 2;
-                prefpath = allocator.Malloc(len);
+                prefpath = (char*)allocator.Malloc(len);
                 if (prefpath)
                     snprintf(prefpath, len, "%s/", path);
                 (*jenv)->ReleaseStringUTFChars(jenv, jstr, path);
@@ -23296,7 +23301,7 @@ char *__PHYSFS_platformCalcUserDir(void)
         {
             const size_t envrlen = strlen(envr);
             const size_t add_dirsep = (envr[envrlen-1] != '/') ? 1 : 0;
-            retval = allocator.Malloc(envrlen + 1 + add_dirsep);
+            retval = (char*)allocator.Malloc(envrlen + 1 + add_dirsep);
             if (retval)
             {
                 strcpy(retval, envr);
@@ -23420,7 +23425,7 @@ PHYSFS_sint64 __PHYSFS_platformRead(void *opaque, void *buffer,
     rc = read(fd, buffer, (size_t) len);
     BAIL_IF(rc == -1, errcodeFromErrno(), -1);
     assert(rc >= 0);
-    assert(rc <= len);
+    assert((PHYSFS_uint64)rc <= len);
     return (PHYSFS_sint64) rc;
 } /* __PHYSFS_platformRead */
 
@@ -23437,7 +23442,7 @@ PHYSFS_sint64 __PHYSFS_platformWrite(void *opaque, const void *buffer,
     rc = write(fd, (void *) buffer, (size_t) len);
     BAIL_IF(rc == -1, errcodeFromErrno(), rc);
     assert(rc >= 0);
-    assert(rc <= len);
+    assert((PHYSFS_uint64)rc <= len);
     return (PHYSFS_sint64) rc;
 } /* __PHYSFS_platformWrite */
 
@@ -24068,7 +24073,7 @@ char *__PHYSFS_platformCalcBaseDir(const char *argv0)
             const unsigned long long pid = (unsigned long long) getpid();
             char path[64];
             const int rc = (int) snprintf(path,sizeof(path),"/proc/%llu/exe",pid);
-            if ( (rc > 0) && (rc < sizeof(path)) )
+            if ( (rc > 0) && (rc < (int)sizeof(path)) )
                 retval = readSymLink(path);
         } /* if */
     } /* if */
@@ -24162,6 +24167,8 @@ char *__PHYSFS_platformCalcPrefDir(const char *org, const char *app)
 */
 #ifdef PHYSFS_PLATFORM_WINDOWS
 
+#undef allocator
+
 /* Forcibly disable UNICODE macro, since we manage this ourselves. */
 #ifdef UNICODE
 #undef UNICODE
@@ -24235,10 +24242,10 @@ static char *unicodeToUtf8Heap(const WCHAR *w_str)
     {
         void *ptr = NULL;
         const PHYSFS_uint64 len = (wStrLen(w_str) * 4) + 1;
-        retval = allocator.Malloc(len);
+        retval = (char*)physfs_allocator.Malloc(len);
         BAIL_IF(!retval, PHYSFS_ERR_OUT_OF_MEMORY, NULL);
         PHYSFS_utf8FromUtf16((const PHYSFS_uint16 *) w_str, retval, len);
-        ptr = allocator.Realloc(retval, strlen(retval) + 1); /* shrink. */
+        ptr = physfs_allocator.Realloc(retval, strlen(retval) + 1); /* shrink. */
         if (ptr != NULL)
             retval = (char *) ptr;
     } /* if */
@@ -24392,7 +24399,7 @@ typedef BOOL (WINAPI *fnSTEM)(DWORD, LPDWORD b);
 static DWORD pollDiscDrives(void)
 {
     /* Try to use SetThreadErrorMode(), which showed up in Windows 7. */
-    HANDLE lib = LoadLibraryA("kernel32.dll");
+    HMODULE lib = LoadLibraryA("kernel32.dll");
     fnSTEM stem = NULL;
     char drive[4] = { 'x', ':', '\\', '\0' };
     DWORD oldErrorMode = 0;
@@ -24582,10 +24589,10 @@ static char *calcDirAppendSep(const WCHAR *wdir)
     retval = unicodeToUtf8Heap(wdir);
     BAIL_IF_ERRPASS(!retval, NULL);
     len = strlen(retval);
-    ptr = allocator.Realloc(retval, len + 2);
+    ptr = physfs_allocator.Realloc(retval, len + 2);
     if (!ptr)
     {
-        allocator.Free(retval);
+        physfs_allocator.Free(retval);
         BAIL(PHYSFS_ERR_OUT_OF_MEMORY, NULL);
     } /* if */
     retval = (char *) ptr;
@@ -24609,9 +24616,9 @@ char *__PHYSFS_platformCalcBaseDir(const char *argv0)
         DWORD rc;
         void *ptr;
 
-        if ( (ptr = allocator.Realloc(modpath, buflen*sizeof(WCHAR))) == NULL )
+        if ( (ptr = physfs_allocator.Realloc(modpath, buflen*sizeof(WCHAR))) == NULL )
         {
-            allocator.Free(modpath);
+            physfs_allocator.Free(modpath);
             BAIL(PHYSFS_ERR_OUT_OF_MEMORY, NULL);
         } /* if */
         modpath = (LPWSTR) ptr;
@@ -24619,7 +24626,7 @@ char *__PHYSFS_platformCalcBaseDir(const char *argv0)
         rc = GetModuleFileNameW(NULL, modpath, buflen);
         if (rc == 0)
         {
-            allocator.Free(modpath);
+            physfs_allocator.Free(modpath);
             BAIL(errcodeFromWinApi(), NULL);
         } /* if */
 
@@ -24650,7 +24657,7 @@ char *__PHYSFS_platformCalcBaseDir(const char *argv0)
             retval = unicodeToUtf8Heap(modpath);
         } /* else */
     } /* else */
-    allocator.Free(modpath);
+    physfs_allocator.Free(modpath);
 
     return retval;   /* w00t. */
 #endif
@@ -24682,15 +24689,15 @@ char *__PHYSFS_platformCalcPrefDir(const char *org, const char *app)
     utf8 = unicodeToUtf8Heap(path);
     BAIL_IF_ERRPASS(!utf8, NULL);
     len = strlen(utf8) + strlen(org) + strlen(app) + 4;
-    retval = allocator.Malloc(len);
+    retval = (char*)physfs_allocator.Malloc(len);
     if (!retval)
     {
-        allocator.Free(utf8);
+        physfs_allocator.Free(utf8);
         BAIL(PHYSFS_ERR_OUT_OF_MEMORY, NULL);
     } /* if */
 
     snprintf(retval, len, "%s\\%s\\%s\\", utf8, org, app);
-    allocator.Free(utf8);
+    physfs_allocator.Free(utf8);
     return retval;
 #endif
 } /* __PHYSFS_platformCalcPrefDir */
@@ -24703,7 +24710,7 @@ char *__PHYSFS_platformCalcUserDir(void)
 #else
     typedef BOOL (WINAPI *fnGetUserProfDirW)(HANDLE, LPWSTR, LPDWORD);
     fnGetUserProfDirW pGetDir = NULL;
-    HANDLE lib = NULL;
+    HMODULE lib = NULL;
     HANDLE accessToken = NULL;       /* Security handle to process */
     char *retval = NULL;
 
@@ -24831,11 +24838,11 @@ PHYSFS_EnumerateCallbackResult __PHYSFS_platformEnumerate(const char *dirname,
 
         utf8 = unicodeToUtf8Heap(fn);
         if (utf8 == NULL)
-            retval = -1;
+            retval = (PHYSFS_EnumerateCallbackResult)-1;
         else
         {
             retval = callback(callbackdata, origdir, utf8);
-            allocator.Free(utf8);
+            physfs_allocator.Free(utf8);
             if (retval == PHYSFS_ENUM_ERROR)
                 PHYSFS_setErrorCode(PHYSFS_ERR_APP_CALLBACK);
         } /* else */
@@ -25028,12 +25035,12 @@ int __PHYSFS_platformDelete(const char *path)
 void *__PHYSFS_platformCreateMutex(void)
 {
     LPCRITICAL_SECTION lpcs;
-    lpcs = (LPCRITICAL_SECTION) allocator.Malloc(sizeof (CRITICAL_SECTION));
+    lpcs = (LPCRITICAL_SECTION) physfs_allocator.Malloc(sizeof (CRITICAL_SECTION));
     BAIL_IF(!lpcs, PHYSFS_ERR_OUT_OF_MEMORY, NULL);
 
     if (!winInitializeCriticalSection(lpcs))
     {
-        allocator.Free(lpcs);
+        physfs_allocator.Free(lpcs);
         BAIL(errcodeFromWinApi(), NULL);
     } /* if */
 
@@ -25044,7 +25051,7 @@ void *__PHYSFS_platformCreateMutex(void)
 void __PHYSFS_platformDestroyMutex(void *mutex)
 {
     DeleteCriticalSection((LPCRITICAL_SECTION) mutex);
-    allocator.Free(mutex);
+    physfs_allocator.Free(mutex);
 } /* __PHYSFS_platformDestroyMutex */
 
 
@@ -25599,6 +25606,17 @@ const void *__PHYSFS_winrtCalcPrefDir(void)
 /* end of physfs_platform_winrt.cpp ... */
 
 #endif /* PHYSFS_PLATFORM_IMPL */
+
+
+#if defined(__PHYSICSFS_INTERNAL__)
+
+/* cleanup macros defined for internal use */
+#ifdef allocator
+#undef allocator
+#endif
+
+#endif
+
 
 /*
     License for PhysFS
