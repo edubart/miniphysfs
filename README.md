@@ -1,6 +1,6 @@
 # MiniPhysFS
 
-This is the PhysFS contained in a single header to be bundled in C programs with ease.
+This is the PhysFS contained in a single header to be bundled in C/C++ applications with ease.
 [PhysFS](https://icculus.org/physfs/) is a library to provide abstract access to various archives.
 
 # Example Usage
@@ -79,11 +79,15 @@ its [official documentation](https://icculus.org/physfs/docs/).
 
 # Updates
 
-- **20-Nov-2020**: Library created, using PhysFS commit
+- **20-Nov-2020**: Library created, using PhysFS changeset
   [acdcf93d1f9b](https://hg.icculus.org/icculus/physfs/rev/acdcf93d1f9b)
 
-Please see the docs directory for documentation.
+# Notes
 
-## License
+PhysFS 3.1.0 with latest changeset (as 20-Nov-2020) [acdcf93d1f9b](https://hg.icculus.org/icculus/physfs/rev/acdcf93d1f9b) 
+was used to make this library, the PhysFS 3.1.0 is not officially released yet,
+but this changeset was chosen due to the added support for Android.
+
+# License
 
 Same license as PhysFS, zlib license, see LICENSE.txt for licensing information.
