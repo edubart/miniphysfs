@@ -79,6 +79,7 @@ its [official documentation](https://icculus.org/physfs/docs/).
 
 # Updates
 
+- **07-May-2021**: Updated to PhysFS changeset [e0346f434926](https://hg.icculus.org/icculus/physfs/rev/e0346f434926), for better ARM64 support.
 - **20-Nov-2020**: Library created, using PhysFS changeset
   [acdcf93d1f9b](https://hg.icculus.org/icculus/physfs/rev/acdcf93d1f9b)
 

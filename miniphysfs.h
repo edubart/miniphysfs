@@ -4227,6 +4227,7 @@ extern const PHYSFS_Archiver __PHYSFS_Archiver_VDF;
 /* a real C99-compliant snprintf() is in Visual Studio 2015,
    but just use this everywhere for binary compatibility. */
 #if defined(_MSC_VER)
+#include <stdarg.h>
 int __PHYSFS_msvc_vsnprintf(char *outBuf, size_t size, const char *format, va_list ap);
 int __PHYSFS_msvc_snprintf(char *outBuf, size_t size, const char *format, ...);
 #define vsnprintf __PHYSFS_msvc_vsnprintf
@@ -4882,7 +4883,6 @@ extern "C" {
 #include "physfs_internal.h"
 */
 #if defined(_MSC_VER)
-#include <stdarg.h>
 
 /* this code came from https://stackoverflow.com/a/8712996 */
 int __PHYSFS_msvc_vsnprintf(char *outBuf, size_t size, const char *format, va_list ap)
@@ -12095,6 +12095,7 @@ MY_CPU_LE_UNALIGN means that CPU is LITTLE ENDIAN and CPU supports unaligned mem
 #endif
 
 #if defined(MY_CPU_AMD64) \
+    || defined(_M_ARM64) \
     || defined(_M_IA64) \
     || defined(__AARCH64EL__) \
     || defined(__AARCH64EB__)
@@ -12119,6 +12120,8 @@ MY_CPU_LE_UNALIGN means that CPU is LITTLE ENDIAN and CPU supports unaligned mem
 #endif
 
 #if defined(_WIN32) && defined(_M_ARM)
+#define MY_CPU_ARM_LE
+#elif defined(_WIN64) && defined(_M_ARM64)
 #define MY_CPU_ARM_LE
 #endif
 
